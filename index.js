@@ -1,3 +1,5 @@
+let data = {};
+
 //express 서버를 로드
 const express = require('express');
 const app = express();
@@ -22,17 +24,46 @@ async function getTags(url){
     //네이버 블로그 포스트는 iframe속에 들어가 있으므로 첫번째 iframe으로 전환
     await driver.switchTo().frame(0);
     //className을 클래스로 가진 elements를 리스트에 저장
-    const className = "__se-hash-tag";
-    const resultElements = await driver.findElements(By.className(className));
+    const titleName = "__se-hash-tag";
+    const titles = await driver.findElements(By.className(titleName));
+    const textName = "se-text-paragraph";
+    const texts = await driver.findElements(By.className(textName));
     //#을 빼고 파싱하여 리스트를 업데이트 및 result에 알맞은 형식으로 추가
-    for(let i = 0; i < resultElements.length; i++){
-      const text = await resultElements[i].getText();
-      resultElements[i] = text.substring(1, text.length);
-      result = result + '<div>' + text + '</div>';
+    for(let i = 0; i < titles.length; i++){
+      const title = await titles[i].getText();
+      titles[i] = title.substring(1, title.length);
+      result = result + '<div>' + title + '</div>';
+      if(data[titles[i]] === undefined){
+        data[titles[i]] = [];
+      }
+    }
+    console.log(titles);
+    let cnt = -1;
+    for(let i = 1; i < texts.length; i++){
+      const text = await texts[i].getText();
+      if(text.length === 0) continue;
+      if(text[0] === '#'){
+        cnt++;
+        continue;
+      }
+      texts[i] = text;
+      // console.log(cnt, titles[cnt], data[titles[cnt]]);
+      data[titles[cnt]].push(texts[i]);
+      // result = result + '<div>' + text + '</div>-';
+    }
+    for(let i = 0; i < Object.keys(data).length; i++){
+      result = result + '<div>' + titles[i];
+      // console.log(data[titles[i]]);
+      for(let j = 0; j < data[titles[i]].length; j++){
+        // console.log(data[titles[i]]);
+        result = result + '<div>' + data[titles[i]][j] + '</div>';
+      }
+      result = result + '</div>';
     }
   }finally{
     driver.quit();
   }
+  console.log(data);
   return result;
 }
 
