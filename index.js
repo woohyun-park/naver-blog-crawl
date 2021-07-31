@@ -32,38 +32,44 @@ async function getTags(url){
     for(let i = 0; i < titles.length; i++){
       const title = await titles[i].getText();
       titles[i] = title.substring(1, title.length);
-      result = result + '<div>' + title + '</div>';
       if(data[titles[i]] === undefined){
         data[titles[i]] = [];
       }
     }
-    console.log(titles);
     let cnt = -1;
     for(let i = 1; i < texts.length; i++){
+      const html = await texts[i].getAttribute("innerHTML");
       const text = await texts[i].getText();
       if(text.length === 0) continue;
       if(text[0] === '#'){
         cnt++;
         continue;
       }
+      if(html.indexOf("<b>") === -1){
+        const arr = data[titles[cnt]];
+        const len = arr.length;
+        arr[len - 1] = arr[len - 1] + '<br>' + text;
+        continue;
+      }
       texts[i] = text;
-      // console.log(cnt, titles[cnt], data[titles[cnt]]);
       data[titles[cnt]].push(texts[i]);
-      // result = result + '<div>' + text + '</div>-';
     }
     for(let i = 0; i < Object.keys(data).length; i++){
-      result = result + '<div>' + titles[i];
-      // console.log(data[titles[i]]);
+      result = result + '<div style="margin: 1rem">' + titles[i];
       for(let j = 0; j < data[titles[i]].length; j++){
-        // console.log(data[titles[i]]);
-        result = result + '<div>' + data[titles[i]][j] + '</div>';
+        result = result + '<div style="margin: 2rem">' + data[titles[i]][j] + '</div>';
       }
       result = result + '</div>';
     }
+    console.log("-----data-----");
+    console.log(data);
+    console.log("-----title-----");
+    console.log(titles);
+    console.log("-----text-----");
+    console.log(texts);
   }finally{
     driver.quit();
   }
-  console.log(data);
   return result;
 }
 
