@@ -1,4 +1,5 @@
 let data = {};
+const numList = ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:"]
 
 //express 서버를 로드
 const express = require('express');
@@ -68,6 +69,19 @@ async function getTags(driver, url){
   }
 }
 
+function checkNum(str){
+  console.log(str, str.search(/(\d:)/), str.search(/(\d.)/), str.search(/(\d-\d)/), str.search(/(\d~\d)/));
+  if(str.search(/(\d:)/) !== -1){
+    return str.search(/(\d:)/) + 2;
+  } else if(str.search(/(\d\.)/) !== -1){
+    return str.search(/(\d\.)/) + 2;
+  } else if(str.search(/(\d-\d)/) !== -1){
+    return str.search(/(\d-\d)/) + 4;
+  } else if(str.search(/(\d~\d)/) !== -1){
+    return str.search(/(\d~\d)/) + 4;
+  } return -1;
+}
+
 //리퀘스트가 들어오면 init을 실행
 app.get('/', function(req, res) {
   //url에서 태그들을 parsing한 결과물을 웹페이지에 출력
@@ -88,7 +102,14 @@ app.get('/', function(req, res) {
     for(let [title, arr] of Object.entries(data)){
       html = html + '<div style="margin: 2rem">' + title;
       for(let i = 0; i < arr.length; i++){
-        html = html + '<div style="margin: 1rem">' + arr[i] + '</div>';
+        // if(numList.indexOf(arr[i].substring(0, 2)) !== -1){
+        const isFrontNum = checkNum(arr[i].substring(0, arr[i].indexOf(":") + 1));
+        if(isFrontNum !== -1){
+          html = html + '<div style="margin: 1rem">' + arr[i].substring(isFrontNum, arr[i].length) + '</div>';
+        }
+        else {
+          html = html + '<div style="margin: 1rem">' + arr[i] + '</div>';
+        }
       }
       html = html + '</div>';
     }
