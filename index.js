@@ -1,5 +1,4 @@
 let data = {};
-const numList = ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:", "9:"]
 
 //express 서버를 로드
 const express = require('express');
@@ -28,6 +27,8 @@ async function getTags(driver, url){
     const textName = "se-text-paragraph";
     const texts = await driver.findElements(By.className(textName));
     //titles를 업데이트
+    const imgName = "se-image-resource";
+    const imgs = await driver.findElements(By.className(imgName));
     for(let i = 0; i < titles.length; i++){
       //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
       const title = await titles[i].getText();
@@ -40,6 +41,7 @@ async function getTags(driver, url){
     //data를 업데이트
     //texts의 첫번째 요소는 무조건 글의 제목이므로 1부터 시작
     let cnt = -1;
+    let cntImg = 0;
     for(let i = 1; i < texts.length; i++){
       const html = await texts[i].getAttribute("innerHTML");
       const text = await texts[i].getText();
@@ -55,22 +57,27 @@ async function getTags(driver, url){
       //<b> 태그가 존재하지 않으면 전의 소제목에 속하는 것
       //따라서 <b> 태그가 없다면 전의 소제목 내용 + 현재 내용 후 건너뛰기
       else if(html.indexOf("<b>") === -1){
-        const arr = data[titles[cnt]];
-        const len = arr.length;
-        arr[len - 1] = arr[len - 1] + '<br>' + text;
+        let arr = data[titles[cnt]][data[titles[cnt]].length - 1];
+        arr.text = arr.text + '<br>' + text;
       }
       //아무것도 해당되지 않는다면 data에 현재 내용을 push
       else{
-        data[titles[cnt]].push(text);
+        if(checkNum(text) !== -1){
+          const img = await imgs[cntImg++].getAttribute("src");
+          console.log(cntImg);
+          data[titles[cnt]].push({text, img});
+        } else {
+          data[titles[cnt]].push({text, img: undefined});
+        }
       }
     }
   } catch(e){
     console.log(e);
   }
+  console.log(data);
 }
 
 function checkNum(str){
-  console.log(str, str.search(/(\d:)/), str.search(/(\d.)/), str.search(/(\d-\d)/), str.search(/(\d~\d)/));
   if(str.search(/(\d:)/) !== -1){
     return str.search(/(\d:)/) + 2;
   } else if(str.search(/(\d\.)/) !== -1){
@@ -100,15 +107,16 @@ app.get('/', function(req, res) {
     driver.quit();
     //웹사이트에 표시할 result를 생성
     for(let [title, arr] of Object.entries(data)){
+      let cntImg = 0;
       html = html + '<div style="margin: 2rem">' + title;
       for(let i = 0; i < arr.length; i++){
         // if(numList.indexOf(arr[i].substring(0, 2)) !== -1){
-        const isFrontNum = checkNum(arr[i].substring(0, arr[i].indexOf(":") + 1));
+        const isFrontNum = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1));
         if(isFrontNum !== -1){
-          html = html + '<div style="margin: 1rem">' + arr[i].substring(isFrontNum, arr[i].length) + '</div>';
+          html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + arr[i].text.substring(isFrontNum, arr[i].text.length) + '</div>';
         }
         else {
-          html = html + '<div style="margin: 1rem">' + arr[i] + '</div>';
+          html = html + '<div style="margin: 1rem">' + arr[i].text + '</div>';
         }
       }
       html = html + '</div>';
