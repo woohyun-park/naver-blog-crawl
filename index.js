@@ -26,9 +26,13 @@ async function getTags(driver, url){
     //textName을 클래스로 가진 elements를 texts에 저장
     const textName = "se-text-paragraph";
     const texts = await driver.findElements(By.className(textName));
-    //titles를 업데이트
+
     const imgName = "se-image-resource";
     const imgs = await driver.findElements(By.className(imgName));
+    const videoName = "se-oembed";
+    const videos = await driver.findElements(By.className(videoName));
+
+    //titles를 업데이트
     for(let i = 0; i < titles.length; i++){
       //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
       const title = await titles[i].getText();
@@ -42,6 +46,7 @@ async function getTags(driver, url){
     //texts의 첫번째 요소는 무조건 글의 제목이므로 1부터 시작
     let cnt = -1;
     let cntImg = 0;
+    let cntVideo = 0;
     for(let i = 1; i < texts.length; i++){
       const html = await texts[i].getAttribute("innerHTML");
       const text = await texts[i].getText();
@@ -62,7 +67,18 @@ async function getTags(driver, url){
       }
       //아무것도 해당되지 않는다면 data에 현재 내용을 push
       else{
-        if(checkNum(text).index !== -1){
+        if(checkNum(text).num === -1){
+          // const video = await videos[cntVideo].findElements(By.tagName("script"))[0];
+          const video = await videos[cntVideo].findElements(By.tagName("script"))
+          const url = await video[0].getAttribute("data-module");
+          // .then(temp => {
+          //   .match(/src=".*?" /)[0];
+          // });
+          console.log(url);
+          console.log(url.match(/(?:src=\\")(.*?)(?:" )/));
+          cntVideo = cntVideo + 1;
+          data[titles[cnt]].push({text, video: url.match(/(?:src=\\")(.*?)(?:" )/)[1]});
+        } else if(checkNum(text).index !== -1){
           console.log(text);
           const img = await imgs[cntImg].getAttribute("src");
           cntImg = cntImg + checkNum(text).num;
@@ -87,7 +103,9 @@ function checkNum(str){
     return {index: str.search(/(^\d-\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
   } else if(str.search(/(^\d~\d)/) !== -1){
     return {index: str.search(/(^\d~\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
-  } return {index: -1, num: 0};
+  } else if(str.search(/(^\dv)/) !== -1){
+    return {index: str.search(/(^\dv)/) + 3, num: -1};
+  }return {index: -1, num: 0};
 }
 
 //리퀘스트가 들어오면 init을 실행
@@ -112,9 +130,12 @@ app.get('/', function(req, res) {
       html = html + '<div style="margin: 2rem">' + title;
       for(let i = 0; i < arr.length; i++){
         // if(numList.indexOf(arr[i].substring(0, 2)) !== -1){
-        const isFrontNum = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1)).index;
-        if(isFrontNum !== -1){
-          html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + arr[i].text.substring(isFrontNum, arr[i].text.length) + '</div>';
+        const num = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1));
+        if(num.num === -1){
+          console.log(arr[i])
+          html = html + '<div style="margin: 1rem">' + `<iframe src="${arr[i].video}"></iframe>` + arr[i].text.substring(num.index, arr[i].text.length) + '</div>';
+        } else if(num.index !== -1){
+          html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + arr[i].text.substring(num.index, arr[i].text.length) + '</div>';
         }
         else {
           html = html + '<div style="margin: 1rem">' + arr[i].text + '</div>';
