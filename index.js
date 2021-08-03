@@ -13,145 +13,169 @@ const chromedriver = require('chromedriver');
 //chrome을 default로 설정
 chrome.setDefaultService(new chrome.ServiceBuilder(chromedriver.path).build());
 
-async function getTags(driver, url){
+async function updateTitles(titles){
+  for(let i = 0; i < titles.length; i++){
+    //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
+    const title = await titles[i].getText();
+    titles[i] = title.substring(1, title.length);
+    //만약 data에 해당 title이 존재하지 않는다면 새로운 리스트를 생성
+    if(data[titles[i]] === undefined){
+      data[titles[i]] = [];
+    }
+  }
+}
+
+function isLineBreak(str){
+  return str.length === 0;
+}
+
+function isTitle(str){
+  return str === "#";
+}
+
+//<b> 태그로 소제목을 구분하도록 설정하였으므로,
+//<b> 태그가 존재하지 않으면 전의 소제목에 속하는 것
+//따라서 <b> 태그가 없다면 전의 소제목 내용 + 현재 내용 후 건너뛰기
+function isSubtitle(str){
+  return str.indexOf("<b>") === -1;
+}
+
+function updateSubtitle(elem, text){
+  elem.text = elem.text + '<br>' + text;
+}
+
+function isVideo(type){
+  return type.num === -1;
+}
+
+function isImg(type){
+  return type.index !== 0;
+}
+
+async function updateData(titles, texts, imgs, videos){
+  //data를 업데이트
+  let cntData = -1;
+  let cntImg = 0;
+  let cntVideo = 0;
+  //texts의 첫번째 요소는 무조건 글의 제목이므로 1부터 시작
+  for(let i = 1; i < texts.length; i++){
+    const html = await texts[i].getAttribute("innerHTML");
+    const text = await texts[i].getText();
+    const arr = data[titles[cntData]];
+    if(isLineBreak(text)){
+
+    } else if(isTitle(text[0])){
+      cntData++;
+    } else if(isSubtitle(html)){
+      updateSubtitle(arr[arr.length - 1], text);
+    } else{
+      const textType = checkNum(text);
+      if(isVideo(textType)){
+        const htmlVideo = await videos[cntVideo].findElements(By.tagName("script"));
+        const url = await htmlVideo[0].getAttribute("data-module");
+        const video = url.match(/(?:src=\\")(.*?)(?:" )/)[1];
+        arr.push({text, video});
+        cntVideo = cntVideo + 1;
+      } else if(isImg(textType)){
+        const img = await imgs[cntImg].getAttribute("src");
+        arr.push({text, img});
+        cntImg = cntImg + checkNum(text).num;
+      } else {
+        arr.push({text});
+      }
+    }
+  }
+}
+
+async function getUrlInfo(driver, url){
   let result = '';
   try{
     //url의 요소를 로드
     await driver.get(url);
     //네이버 블로그 포스트는 iframe속에 들어가 있으므로 첫번째 iframe으로 전환
     await driver.switchTo().frame(0);
-    //titleName을 클래스로 가진 elements를 titles에 저장
-    const titleName = "__se-hash-tag";
-    const titles = await driver.findElements(By.className(titleName));
-    //textName을 클래스로 가진 elements를 texts에 저장
-    const textName = "se-text-paragraph";
-    const texts = await driver.findElements(By.className(textName));
+    const titles = await driver.findElements(By.className("__se-hash-tag"));
+    const texts = await driver.findElements(By.className("se-text-paragraph"));
+    const imgs = await driver.findElements(By.className("se-image-resource"));
+    const videos = await driver.findElements(By.className("se-oembed"));
 
-    const imgName = "se-image-resource";
-    const imgs = await driver.findElements(By.className(imgName));
-    const videoName = "se-oembed";
-    const videos = await driver.findElements(By.className(videoName));
-
-    //titles를 업데이트
-    for(let i = 0; i < titles.length; i++){
-      //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
-      const title = await titles[i].getText();
-      titles[i] = title.substring(1, title.length);
-      //만약 data에 해당 title이 존재하지 않는다면 새로운 리스트를 생성
-      if(data[titles[i]] === undefined){
-        data[titles[i]] = [];
-      }
-    }
-    //data를 업데이트
-    //texts의 첫번째 요소는 무조건 글의 제목이므로 1부터 시작
-    let cnt = -1;
-    let cntImg = 0;
-    let cntVideo = 0;
-    for(let i = 1; i < texts.length; i++){
-      const html = await texts[i].getAttribute("innerHTML");
-      const text = await texts[i].getText();
-      //줄바꿈이라면 건너뛰기
-      if(text.length === 0){
-
-      }
-      //title이라면 건너뛰기
-      else if(text[0] === '#'){
-        cnt++;
-      }
-      //<b> 태그로 소제목을 구분하도록 설정하였으므로,
-      //<b> 태그가 존재하지 않으면 전의 소제목에 속하는 것
-      //따라서 <b> 태그가 없다면 전의 소제목 내용 + 현재 내용 후 건너뛰기
-      else if(html.indexOf("<b>") === -1){
-        let arr = data[titles[cnt]][data[titles[cnt]].length - 1];
-        arr.text = arr.text + '<br>' + text;
-      }
-      //아무것도 해당되지 않는다면 data에 현재 내용을 push
-      else{
-        if(checkNum(text).num === -1){
-          // const video = await videos[cntVideo].findElements(By.tagName("script"))[0];
-          const video = await videos[cntVideo].findElements(By.tagName("script"))
-          const url = await video[0].getAttribute("data-module");
-          // .then(temp => {
-          //   .match(/src=".*?" /)[0];
-          // });
-          console.log(url);
-          console.log(url.match(/(?:src=\\")(.*?)(?:" )/));
-          cntVideo = cntVideo + 1;
-          data[titles[cnt]].push({text, video: url.match(/(?:src=\\")(.*?)(?:" )/)[1]});
-        } else if(checkNum(text).index !== -1){
-          console.log(text);
-          const img = await imgs[cntImg].getAttribute("src");
-          cntImg = cntImg + checkNum(text).num;
-          console.log(cntImg, img);
-          data[titles[cnt]].push({text, img});
-        } else {
-          data[titles[cnt]].push({text, img: undefined});
-        }
-      }
-    }
+    await updateTitles(titles);
+    await updateData(titles, texts, imgs, videos);
   } catch(e){
     console.log(e);
   }
 }
 
+async function getUrlInfos(url){
+  //selenium 빌더를 생성
+  const driver = await new Builder()
+  .forBrowser('chrome')
+  .build();
+  //모든 url을 돌면서 정보를 저장
+  for(let i = 0; i < url.length; i++){
+    const temp = await getUrlInfo(driver, url[i]);
+  }
+  //selenium 빌더를 삭제
+  driver.quit();
+}
+
+//checkNum()
+//input: 요소의 내용
+//return: [번호를 제외한 내용의 인덱스 (index), 사진/비디오의 갯수 (num)]
+//index: 번호를 제외한 순수한 내용의 첫번째 인덱스 (e.g. "1.정돈: 정사각형같은 맛이다" => 2)
+//num: 사진일경우 사진의 갯수, 비디오일경우 -1, 글만 존재할경우 0
 function checkNum(str){
-  if(str.search(/(^\d:)/) !== -1){
-    return {index: str.search(/(^\d:)/) + 2, num: 1};
-  } else if(str.search(/(^\d\.)/) !== -1){
-    return {index: str.search(/(^\d\.)/) + 2, num: 1};
-  } else if(str.search(/(^\d-\d)/) !== -1){
-    return {index: str.search(/(^\d-\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
-  } else if(str.search(/(^\d~\d)/) !== -1){
-    return {index: str.search(/(^\d~\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
-  } else if(str.search(/(^\dv)/) !== -1){
-    return {index: str.search(/(^\dv)/) + 3, num: -1};
-  }return {index: -1, num: 0};
+  let index;
+  //한개의 사진일 경우 (숫자 + : 또는 숫자 + .)
+  if(index = str.search(/(^\d[:.])/) !== -1){
+    return {index: index + 2, num: 1};
+  }
+  //여러개의 사진일 경우 (숫자~숫자 또는 숫자-숫자)
+  else if(index = str.search(/(^\d[-~]\d)/) !== -1){
+    return {index: index + 4, num: str[2]/1 - str[0]/1 + 1};
+  }
+  //비디오일 경우 (숫자 + v)
+  else if(index = str.search(/(^\dv)/) !== -1){
+    return {index: index + 3, num: -1};
+  }
+  //글만 존재할 경우
+  return {index: 0, num: 0};
+}
+
+function getFilteredText(str){
+  return str.substring(0, str.indexOf(":") + 1);
+}
+
+function createHtml(){
+  let html = '';
+  for(let [title, arr] of Object.entries(data)){
+    html = html + '<div style="margin: 2rem">' + title;
+    for(let i = 0; i < arr.length; i++){
+      const text = arr[i].text;
+      const type = checkNum(getFilteredText(text));
+      if(isVideo(type)){
+        html = html + '<div style="margin: 1rem">' + `<iframe src="${arr[i].video}"></iframe>` + text.substring(type.index, text.length) + '</div>';
+      } else if(isImg(type)){
+        html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + text.substring(type.index, text.length) + '</div>';
+      } else {
+        html = html + '<div style="margin: 1rem">' + text + '</div>';
+      }
+    }
+    html = html + '</div>';
+  }
+  return html;
+}
+
+async function sendHtml(res){
+  const url = ["https://blog.naver.com/a-eve/222450141159", "https://blog.naver.com/a-eve/222437178579"];
+  await getUrlInfos(url);
+  res.send(createHtml());
 }
 
 //리퀘스트가 들어오면 init을 실행
 app.get('/', function(req, res) {
   //url에서 태그들을 parsing한 결과물을 웹페이지에 출력
-  const url = ["https://blog.naver.com/a-eve/222450141159", "https://blog.naver.com/a-eve/222437178579"];
-  async function sendHtml(){
-    let html = '';
-    //selenium 빌더를 생성
-    const driver = await new Builder()
-    .forBrowser('chrome')
-    .build();
-    //모든 url을 돌면서 정보를 저장
-    for(let i = 0; i < url.length; i++){
-      const temp = await getTags(driver, url[i]);
-    }
-    //selenium 빌더를 삭제
-    driver.quit();
-    //웹사이트에 표시할 result를 생성
-    for(let [title, arr] of Object.entries(data)){
-      let cntImg = 0;
-      html = html + '<div style="margin: 2rem">' + title;
-      for(let i = 0; i < arr.length; i++){
-        // if(numList.indexOf(arr[i].substring(0, 2)) !== -1){
-        const num = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1));
-        if(num.num === -1){
-          console.log(arr[i])
-          html = html + '<div style="margin: 1rem">' + `<iframe src="${arr[i].video}"></iframe>` + arr[i].text.substring(num.index, arr[i].text.length) + '</div>';
-        } else if(num.index !== -1){
-          html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + arr[i].text.substring(num.index, arr[i].text.length) + '</div>';
-        }
-        else {
-          html = html + '<div style="margin: 1rem">' + arr[i].text + '</div>';
-        }
-      }
-      html = html + '</div>';
-    }
-    // console.log("-----data-----");
-    // console.log(data);
-    // console.log("-----title-----");
-    // console.log(titles);
-    // console.log("-----text-----");
-    // console.log(texts);
-    res.send(html);
-  }
-  sendHtml();
+  sendHtml(res);
 });
 
 //3000번 포트에 서버를 시작
