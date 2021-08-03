@@ -62,9 +62,10 @@ async function getTags(driver, url){
       }
       //아무것도 해당되지 않는다면 data에 현재 내용을 push
       else{
-        if(checkNum(text) !== -1){
+        if(checkNum(text).index !== -1){
           console.log(text);
-          const img = await imgs[cntImg++].getAttribute("src");
+          const img = await imgs[cntImg].getAttribute("src");
+          cntImg = cntImg + checkNum(text).num;
           console.log(cntImg, img);
           data[titles[cnt]].push({text, img});
         } else {
@@ -79,14 +80,14 @@ async function getTags(driver, url){
 
 function checkNum(str){
   if(str.search(/(^\d:)/) !== -1){
-    return str.search(/(^\d:)/) + 2;
+    return {index: str.search(/(^\d:)/) + 2, num: 1};
   } else if(str.search(/(^\d\.)/) !== -1){
-    return str.search(/(^\d\.)/) + 2;
+    return {index: str.search(/(^\d\.)/) + 2, num: 1};
   } else if(str.search(/(^\d-\d)/) !== -1){
-    return str.search(/(^\d-\d)/) + 4;
+    return {index: str.search(/(^\d-\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
   } else if(str.search(/(^\d~\d)/) !== -1){
-    return str.search(/(^\d~\d)/) + 4;
-  } return -1;
+    return {index: str.search(/(^\d~\d)/) + 4, num: str[2]/1 - str[0]/1 + 1};
+  } return {index: -1, num: 0};
 }
 
 //리퀘스트가 들어오면 init을 실행
@@ -111,7 +112,7 @@ app.get('/', function(req, res) {
       html = html + '<div style="margin: 2rem">' + title;
       for(let i = 0; i < arr.length; i++){
         // if(numList.indexOf(arr[i].substring(0, 2)) !== -1){
-        const isFrontNum = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1));
+        const isFrontNum = checkNum(arr[i].text.substring(0, arr[i].text.indexOf(":") + 1)).index;
         if(isFrontNum !== -1){
           html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + arr[i].text.substring(isFrontNum, arr[i].text.length) + '</div>';
         }
