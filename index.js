@@ -63,8 +63,9 @@ async function getTags(driver, url){
       //아무것도 해당되지 않는다면 data에 현재 내용을 push
       else{
         if(checkNum(text) !== -1){
+          console.log(text);
           const img = await imgs[cntImg++].getAttribute("src");
-          console.log(cntImg);
+          console.log(cntImg, img);
           data[titles[cnt]].push({text, img});
         } else {
           data[titles[cnt]].push({text, img: undefined});
@@ -74,18 +75,17 @@ async function getTags(driver, url){
   } catch(e){
     console.log(e);
   }
-  console.log(data);
 }
 
 function checkNum(str){
-  if(str.search(/(\d:)/) !== -1){
-    return str.search(/(\d:)/) + 2;
-  } else if(str.search(/(\d\.)/) !== -1){
-    return str.search(/(\d\.)/) + 2;
-  } else if(str.search(/(\d-\d)/) !== -1){
-    return str.search(/(\d-\d)/) + 4;
-  } else if(str.search(/(\d~\d)/) !== -1){
-    return str.search(/(\d~\d)/) + 4;
+  if(str.search(/(^\d:)/) !== -1){
+    return str.search(/(^\d:)/) + 2;
+  } else if(str.search(/(^\d\.)/) !== -1){
+    return str.search(/(^\d\.)/) + 2;
+  } else if(str.search(/(^\d-\d)/) !== -1){
+    return str.search(/(^\d-\d)/) + 4;
+  } else if(str.search(/(^\d~\d)/) !== -1){
+    return str.search(/(^\d~\d)/) + 4;
   } return -1;
 }
 
