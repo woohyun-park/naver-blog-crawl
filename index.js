@@ -1,3 +1,5 @@
+const { Check } = require('./check.js');
+
 let data = {};
 
 //express 서버를 로드
@@ -13,6 +15,10 @@ const chromedriver = require('chromedriver');
 //chrome을 default로 설정
 chrome.setDefaultService(new chrome.ServiceBuilder(chromedriver.path).build());
 
+function updateSubtitle(elem, text){
+  elem.text = elem.text + '<br>' + text;
+}
+
 async function updateTitles(titles){
   for(let i = 0; i < titles.length; i++){
     //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
@@ -25,33 +31,6 @@ async function updateTitles(titles){
   }
 }
 
-function isLineBreak(str){
-  return str.length === 0;
-}
-
-function isTitle(str){
-  return str === "#";
-}
-
-//<b> 태그로 소제목을 구분하도록 설정하였으므로,
-//<b> 태그가 존재하지 않으면 전의 소제목에 속하는 것
-//따라서 <b> 태그가 없다면 전의 소제목 내용 + 현재 내용 후 건너뛰기
-function isSubtitle(str){
-  return str.indexOf("<b>") === -1;
-}
-
-function updateSubtitle(elem, text){
-  elem.text = elem.text + '<br>' + text;
-}
-
-function isVideo(type){
-  return type.num === -1;
-}
-
-function isImg(type){
-  return type.index !== 0;
-}
-
 async function updateData(titles, texts, imgs, videos){
   //data를 업데이트
   let cntData = -1;
@@ -62,21 +41,21 @@ async function updateData(titles, texts, imgs, videos){
     const html = await texts[i].getAttribute("innerHTML");
     const text = await texts[i].getText();
     const arr = data[titles[cntData]];
-    if(isLineBreak(text)){
+    if(Check.isLineBreak(text)){
 
-    } else if(isTitle(text[0])){
+    } else if(Check.isTitle(text[0])){
       cntData++;
-    } else if(isSubtitle(html)){
+    } else if(Check.isSubtitle(html)){
       updateSubtitle(arr[arr.length - 1], text);
     } else{
       const textType = checkNum(text);
-      if(isVideo(textType)){
+      if(Check.isVideo(textType)){
         const htmlVideo = await videos[cntVideo].findElements(By.tagName("script"));
         const url = await htmlVideo[0].getAttribute("data-module");
         const video = url.match(/(?:src=\\")(.*?)(?:" )/)[1];
         arr.push({text, video});
         cntVideo = cntVideo + 1;
-      } else if(isImg(textType)){
+      } else if(Check.isImg(textType)){
         const img = await imgs[cntImg].getAttribute("src");
         arr.push({text, img});
         cntImg = cntImg + checkNum(text).num;
@@ -119,7 +98,7 @@ async function getUrlInfos(url){
   driver.quit();
 }
 
-//checkNum()
+//checkModNum()
 //input: 요소의 내용
 //return: [번호를 제외한 내용의 인덱스 (index), 사진/비디오의 갯수 (num)]
 //index: 번호를 제외한 순수한 내용의 첫번째 인덱스 (e.g. "1.정돈: 정사각형같은 맛이다" => 2)
@@ -153,9 +132,9 @@ function createHtml(){
     for(let i = 0; i < arr.length; i++){
       const text = arr[i].text;
       const type = checkNum(getFilteredText(text));
-      if(isVideo(type)){
+      if(Check.isVideo(type)){
         html = html + '<div style="margin: 1rem">' + `<iframe src="${arr[i].video}"></iframe>` + text.substring(type.index, text.length) + '</div>';
-      } else if(isImg(type)){
+      } else if(Check.isImg(type)){
         html = html + '<div style="margin: 1rem">' + `<img referrerpolicy="no-referrer" src="${arr[i].img}">` + text.substring(type.index, text.length) + '</div>';
       } else {
         html = html + '<div style="margin: 1rem">' + text + '</div>';
