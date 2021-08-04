@@ -22,9 +22,9 @@ const Display = {
     }
     return html;
   },
-  displayHtml: async function(url, res){
+  displayHtml: async function(url){
     await Load.loadUrlInfos(url);
-    res.send(this.createHtml());
+    return this.createHtml();
   }
 }
 
