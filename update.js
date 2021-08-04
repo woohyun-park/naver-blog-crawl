@@ -1,6 +1,6 @@
 const { Data } = require('./data.js');
 const { Check } = require('./check.js');
-const {Builder, By, Key, until} = require('selenium-webdriver');
+const { By } = require('selenium-webdriver');
 
 const Update = {
   updateSubtitle: function(elem, text){
