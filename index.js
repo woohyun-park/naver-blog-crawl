@@ -4,7 +4,6 @@ const { Check } = require('./check.js');
 const { Update } = require('./update.js');
 const { Display } = require('./display.js');
 
-//express 서버를 로드
 const express = require('express');
 const app = express();
 

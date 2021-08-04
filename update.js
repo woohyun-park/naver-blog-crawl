@@ -11,7 +11,6 @@ const Update = {
       //titles는 원래 앞에 #이 붙어있는데, 해당 문자를 substring으로 삭제하여 업데이트
       const title = await titles[i].getText();
       titles[i] = title.substring(1, title.length);
-      //만약 data에 해당 title이 존재하지 않는다면 새로운 리스트를 생성
       if(Data[titles[i]] === undefined){
         Data[titles[i]] = [];
       }
